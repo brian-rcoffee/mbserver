@@ -3,6 +3,7 @@ package mbserver
 
 import (
 	"io"
+	"log"
 	"net"
 
 	"github.com/goburrow/serial"
@@ -62,6 +63,8 @@ func (s *Server) RegisterFunctionHandler(funcCode uint8, function func(*Server, 
 func (s *Server) handle(request *Request) Framer {
 	var exception *Exception
 	var data []byte
+
+	log.Printf("function: %v, value: %+v\n", request.frame.GetFunction(), request.frame.GetData())
 
 	response := request.frame.Copy()
 
