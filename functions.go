@@ -66,6 +66,8 @@ func ReadInputRegisters(s *Server, frame Framer) ([]byte, *Exception) {
 
 // WriteSingleCoil function 5, write a coil to internal memory.
 func WriteSingleCoil(s *Server, frame Framer) ([]byte, *Exception) {
+	defer s.saveState()
+
 	register, value := registerAddressAndValue(frame)
 	// TODO Should we use 0 for off and 65,280 (FF00 in hexadecimal) for on?
 	if value != 0 {
@@ -77,6 +79,8 @@ func WriteSingleCoil(s *Server, frame Framer) ([]byte, *Exception) {
 
 // WriteHoldingRegister function 6, write a holding register to internal memory.
 func WriteHoldingRegister(s *Server, frame Framer) ([]byte, *Exception) {
+	defer s.saveState()
+
 	register, value := registerAddressAndValue(frame)
 	s.HoldingRegisters[register] = value
 	return frame.GetData()[0:4], &Success
@@ -84,6 +88,8 @@ func WriteHoldingRegister(s *Server, frame Framer) ([]byte, *Exception) {
 
 // WriteMultipleCoils function 15, writes holding registers to internal memory.
 func WriteMultipleCoils(s *Server, frame Framer) ([]byte, *Exception) {
+	defer s.saveState()
+
 	register, numRegs, endRegister := registerAddressAndNumber(frame)
 	valueBytes := frame.GetData()[5:]
 
@@ -115,6 +121,8 @@ func WriteMultipleCoils(s *Server, frame Framer) ([]byte, *Exception) {
 
 // WriteHoldingRegisters function 16, writes holding registers to internal memory.
 func WriteHoldingRegisters(s *Server, frame Framer) ([]byte, *Exception) {
+	defer s.saveState()
+
 	register, numRegs, _ := registerAddressAndNumber(frame)
 	valueBytes := frame.GetData()[5:]
 	var exception *Exception

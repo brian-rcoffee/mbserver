@@ -2,11 +2,19 @@
 package mbserver
 
 import (
+	"bytes"
+	"encoding/gob"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
+	"os"
 
 	"github.com/goburrow/serial"
+)
+
+const (
+	checkpointFile = "modbus.state"
 )
 
 // Server is a Modbus slave with allocated memory for discrete inputs, coils, etc.
@@ -48,6 +56,9 @@ func NewServer() *Server {
 	s.function[6] = WriteHoldingRegister
 	s.function[15] = WriteMultipleCoils
 	s.function[16] = WriteHoldingRegisters
+
+	// attempt to restore state
+	s.restoreState()
 
 	s.requestChan = make(chan *Request)
 	go s.handler()
@@ -99,5 +110,58 @@ func (s *Server) Close() {
 	}
 	for _, port := range s.ports {
 		port.Close()
+	}
+}
+
+type StateObject struct {
+	DiscreteInputs   []byte
+	Coils            []byte
+	HoldingRegisters []uint16
+	InputRegisters   []uint16
+}
+
+func (s *Server) saveState() {
+	log.Println("saving state . . .")
+	defer log.Println("done")
+
+	so := StateObject{
+		DiscreteInputs:   s.DiscreteInputs,
+		Coils:            s.Coils,
+		HoldingRegisters: s.HoldingRegisters,
+		InputRegisters:   s.InputRegisters,
+	}
+
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(so)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(checkpointFile, buf.Bytes(), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (s *Server) restoreState() {
+	log.Println("restoring state . . .")
+	defer log.Println("done")
+
+	if _, err := os.Stat(checkpointFile); !os.IsNotExist(err) {
+		f, err := os.Open(checkpointFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		var so StateObject
+		dec := gob.NewDecoder(f)
+		err = dec.Decode(&so)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		s.DiscreteInputs = so.DiscreteInputs
+		s.Coils = so.Coils
+		s.HoldingRegisters = so.HoldingRegisters
+		s.InputRegisters = so.InputRegisters
 	}
 }
